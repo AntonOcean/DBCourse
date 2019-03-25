@@ -86,6 +86,9 @@ func (p *Post) CheckAuthorExists(db *sql.DB) (exist bool) {
 
 func CreatePostsBulk(db *sql.DB, data []Post) (posts []Post) {
 
+	//('{1}', 'comment_1'),
+	//  (SELECT path FROM comments WHERE id = :id) || (select currval('comments_id_seq')::integer)
+
 	currentTime := time.Now()
 	countPosts := len(data)
 

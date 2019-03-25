@@ -185,7 +185,7 @@ LIMIT $3
 SELECT child.id, child.author_id, child.created, child.forum_id, child.isEdited, child.message, child.parent_id, child.thread_id FROM forum_db.post parent
 JOIN forum_db.post child ON child.parent_id = parent.id OR (child.id = parent.id AND child.parent_id is NULL)
 WHERE parent.thread_id = $1
-ORDER BY child.created DESC, parent.id DESC, child.id DESC 
+ORDER BY parent.id DESC, child.id DESC, parent.created DESC
 LIMIT $2
 `,
 					t.Id, limit)
@@ -205,7 +205,7 @@ LIMIT $3
 SELECT child.id, child.author_id, child.created, child.forum_id, child.isEdited, child.message, child.parent_id, child.thread_id FROM forum_db.post parent
 JOIN forum_db.post child ON child.parent_id = parent.id OR (child.id = parent.id AND child.parent_id is NULL)
 WHERE parent.thread_id = $1
-ORDER BY parent.created, parent.id, child.id
+ORDER BY parent.id, child.id, parent.created
 LIMIT $2
 `,
 					t.Id, limit)
