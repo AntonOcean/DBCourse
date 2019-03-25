@@ -5,7 +5,6 @@ import (
 	"github.com/gin-gonic/gin"
 )
 
-
 func main() {
 	r := gin.Default()
 
@@ -46,6 +45,8 @@ func main() {
 		service.GET("/status", handlers.ServiceStatusHandler)
 		service.POST("/clear", handlers.ServiceClearHandler)
 	}
+
+	//r.Use(DataBaseConnectionMiddleware())
 
 	_ = r.Run(":8080") // listen and serve on 0.0.0.0:8080
 }

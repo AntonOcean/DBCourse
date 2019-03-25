@@ -6,19 +6,19 @@ import (
 )
 
 type Thread struct {
-	Author string `json:"author"`
+	Author  string `json:"author"`
 	Created string `json:"created"`
-	Forum string `json:"forum"`
-	Id int32 `json:"id"`
+	Forum   string `json:"forum"`
+	Id      int32  `json:"id"`
 	Message string `json:"message"`
-	Slug string `json:"slug"`
-	Title string `json:"title"`
-	Votes int32 `json:"votes"`
+	Slug    string `json:"slug"`
+	Title   string `json:"title"`
+	Votes   int32  `json:"votes"`
 }
 
 type ThreadUpdate struct {
 	Message string `json:"message"`
-	Title string `json:"title"`
+	Title   string `json:"title"`
 }
 
 func (t Thread) Create(db *sql.DB) (err error) {
@@ -50,7 +50,7 @@ func (t Thread) Create(db *sql.DB) (err error) {
 	}
 
 	if err != nil {
-		fmt.Println("thread model Create 1 ",err)
+		fmt.Println("thread model Create 1 ", err)
 		return
 	}
 	return
@@ -77,7 +77,7 @@ func (t *Thread) Get(db *sql.DB, slug string, id int32, title string) (err error
 
 	err = row.Scan(&t.Id, &t.Author, &t.Created, &t.Forum, &t.Message, &t.Slug, &t.Title)
 	if err != nil {
-		fmt.Println("thread model Get 1 ",err)
+		fmt.Println("thread model Get 1 ", err)
 		return
 	}
 	return
@@ -89,13 +89,12 @@ func (t *Thread) Update(db *sql.DB) (err error) {
 		t.Message, t.Title, t.Id,
 	)
 	if err != nil {
-		fmt.Println("thread model Update 1 ",err)
+		fmt.Println("thread model Update 1 ", err)
 		return
 	}
 
 	return
 }
-
 
 func (t *Thread) SetVotesCount(db *sql.DB) {
 	var sum int32
@@ -104,15 +103,15 @@ func (t *Thread) SetVotesCount(db *sql.DB) {
 		t.Id)
 	defer rows.Close()
 	if err != nil {
-		fmt.Println("thread model SetVotesCount 1 ",err)
+		fmt.Println("thread model SetVotesCount 1 ", err)
 		t.Votes = 0
 		return
 	}
 
 	for rows.Next() {
-		err:= rows.Scan(&sum)
+		err := rows.Scan(&sum)
 		if err != nil {
-			fmt.Println("thread model SetVotesCount 2 ",err)
+			fmt.Println("thread model SetVotesCount 2 ", err)
 			t.Votes = 0
 			return
 		}
@@ -127,7 +126,7 @@ func (t Thread) GetLastPost(db *sql.DB) (post Post, err error) {
 		t.Id,
 	)
 
-	err = row.Scan(&post.Id, &post.Author, &post.Created, &post.Forum, &post.IsEdited, &post.Message, &post.Parent, &post.Thread)
+	err = row.Scan(&post.Id, &post.AuthorID, &post.Created, &post.ForumSlug, &post.IsEdited, &post.Message, &post.ParentID, &post.ThreadID)
 	if err != nil {
 		fmt.Println("thread model GetLastPost 1 ", err)
 	}
@@ -222,7 +221,6 @@ LIMIT $3
 			}
 		}
 
-
 	case "parent_tree":
 
 		if desc == "true" {
@@ -283,35 +281,31 @@ ORDER BY parent.created, parent.id, child.id
 			}
 		}
 
-
 	}
-
 
 	defer rows.Close()
 
 	if err != nil {
-		fmt.Println("forum model GetListPost 1 ",err)
+		fmt.Println("forum model GetListPost 1 ", err)
 		return
 	}
 
 	for rows.Next() {
 		var post Post
-		var temp sql.NullInt64
-		err = rows.Scan(&post.Id, &post.Author, &post.Created, &post.Forum, &post.IsEdited, &post.Message, &temp, &post.Thread)
+		//var temp sql.NullInt64
+		err = rows.Scan(&post.Id, &post.AuthorID, &post.Created, &post.ForumSlug, &post.IsEdited, &post.Message, &post.ParentID, &post.ThreadID)
 		if err != nil {
-			fmt.Println("forum model GetListPost 2 ",err)
+			fmt.Println("forum model GetListPost 2 ", err)
 		}
 
-		if !temp.Valid {
-			post.Parent = 0
-		} else {
-			post.Parent = temp.Int64
-		}
-
+		//if !temp.Valid {
+		//	post.ParentID = 0
+		//} else {
+		//	post.ParentID = temp.Int64
+		//}
 
 		posts = append(posts, post)
 	}
-
 
 	return
 }

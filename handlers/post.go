@@ -8,14 +8,10 @@ import (
 	"net/http"
 	"strconv"
 	"strings"
-	"time"
 )
 
 func PostsCreateHandler(c *gin.Context) {
-	// создание bulk
 	//loc, _ := time.LoadLocation("Europe/Moscow")
-	str := time.Now()
-	currentTime := time.Date(str.Year(), str.Month(), str.Day(), str.Hour(), str.Minute(), 0, 0, str.Location())
 	//currentTime := time.Now().Format("2006-01-02 15:04:05 +0300 MSK")
 
 	db := config.Database()
@@ -28,14 +24,11 @@ func PostsCreateHandler(c *gin.Context) {
 
 	err = c.BindJSON(&posts)
 
-
 	id, err := strconv.Atoi(c.Param("identifier"))
 	//fmt.Println(err)
 	if err == nil {
-		fmt.Println("post PostsCreateHandler 1 ",err)
 		err = thread.Get(db, "", int32(id), "")
 		if err != nil {
-			fmt.Println("post PostsCreateHandler 2 ",err)
 			c.JSON(http.StatusNotFound, models.Error{"Can't find post thread with id: " + strconv.Itoa(id)})
 			return
 		}
@@ -43,68 +36,80 @@ func PostsCreateHandler(c *gin.Context) {
 		slug := c.Param("identifier")
 		err = thread.Get(db, slug, 0, "")
 		if err != nil {
-			fmt.Println("post PostsCreateHandler 4 ",err)
 			c.JSON(http.StatusNotFound, models.Error{"Can't find post thread with slug: " + slug})
 			return
 		}
 	}
 
-	if len(posts) ==0 {
+	if len(posts) == 0 {
 
 		c.JSON(http.StatusCreated, []int{})
 		return
 	}
 
-	var forum models.Forum
+	//var forum models.Forum
 
-	err = forum.Get(db, thread.Forum)
+	//err = forum.Get(db, thread.Forum)
+	//
+	//if err != nil {
+	//
+	//	fmt.Println("post PostsCreateHandler 5 ",err)
+	//}
 
-	if err != nil {
-
-		fmt.Println("post PostsCreateHandler 5 ",err)
-	}
-
-	var postsCreated []interface{}
+	//var postsToBeCreate []models.Post
 
 	//
-	for _, post := range posts {
-		post.Thread = thread.Id
-		post.Forum = forum.Slug
+	for idx, post := range posts {
+		posts[idx].ThreadID = thread.Id
+		//fmt.Println(thread.Id, post.ThreadID, posts[idx].ThreadID, idx, post == posts[idx])
+		posts[idx].ForumSlug = thread.Forum
 
-		var user models.User
-		err := user.Get(db, post.Author)
-		if err != nil {
-			fmt.Println("user UserProfileHandler 2 ",err)
-			c.JSON(http.StatusNotFound, models.Error{"Can't find author with nickname: " + post.Author})
+		//post.CheckAuthorExists(db)
+		//var user models.User
+		//err := user.Get(db, post.AuthorID)
+		if !post.CheckAuthorExists(db) {
+			//fmt.Println("user UserProfileHandler 2 ",err)
+			c.JSON(http.StatusNotFound, models.Error{"Can't find author with nickname: " + post.AuthorID})
 			return
 		}
 
-		if post.Parent != 0 {
-			exist, err := post.CheckParentExists(db)
-			if err != nil || !exist {
-				fmt.Println("post PostsCreateHandler 6 ",err)
-				c.JSON(http.StatusConflict, models.Error{"Can't find post with id: " + strconv.Itoa(int(post.Parent))})
+		// Существуетли родитель в ветке
+		if post.ParentID.Valid && post.ParentID.Int64 != 0 {
+			//exist, err := posts[idx].CheckParentExists(db)
+			if !posts[idx].CheckParentExists(db) {
+				c.JSON(http.StatusConflict, models.Error{"Can't find post with id: " + strconv.Itoa(int(post.ParentID.Int64))})
 				return
 			}
 		}
 
-		err = post.CreatePost(db, currentTime)
-		if err != nil {
-			fmt.Println("post PostsCreateHandler 7 ",err)
-		}
-		err = post.Get(db)
-		if err != nil {
-			fmt.Println("post PostsCreateHandler 8 ",err)
-		}
+		//if post.ParentID != 0 {
+		//	exist, err := post.CheckParentExists(db)
+		//	if err != nil || !exist {
+		//		fmt.Println("post PostsCreateHandler 6 ",err)
+		//		c.JSON(http.StatusConflict, models.Error{"Can't find post with id: " + strconv.Itoa(int(post.ParentID))})
+		//		return
+		//	}
+		//}
 
-		postsCreated = append(postsCreated, post)
+		//err = post.CreatePost(db, currentTime)
+		//if err != nil {
+		//	fmt.Println("post PostsCreateHandler 7 ",err)
+		//}
+		//err = post.Get(db)
+		//if err != nil {
+		//	fmt.Println("post PostsCreateHandler 8 ",err)
+		//}
+
+		//postsToBeCreate = append(postsToBeCreate, post)
 
 	}
 
-	if posts == nil {
-		c.JSON(http.StatusCreated, []int{})
-		return
-	}
+	postsCreated := models.CreatePostsBulk(db, posts)
+
+	//if postsCreated == nil {
+	//	c.JSON(http.StatusCreated, []int{})
+	//	return
+	//}
 
 	c.JSON(http.StatusCreated, postsCreated)
 
@@ -146,14 +151,14 @@ func PostDetailsHandler(c *gin.Context) {
 			switch obj {
 			case "user":
 				var user models.User
-				err = user.Get(db, post.Author)
+				err = user.Get(db, post.AuthorID)
 				if err != nil {
 					fmt.Println("blat post 1")
 				}
 				result["author"] = user
 			case "forum":
 				var forum models.Forum
-				err = forum.Get(db, post.Forum)
+				err = forum.Get(db, post.ForumSlug)
 				if err != nil {
 					fmt.Println("blat post 2")
 				}
@@ -162,7 +167,7 @@ func PostDetailsHandler(c *gin.Context) {
 				result["forum"] = forum
 			case "thread":
 				var thread models.Thread
-				err = thread.Get(db, "", post.Thread, "")
+				err = thread.Get(db, "", post.ThreadID, "")
 				if err != nil {
 					fmt.Println("blat post 3")
 				}
@@ -193,7 +198,6 @@ func PostDetailsHandler(c *gin.Context) {
 
 }
 
-
 func GetPostsHandler(c *gin.Context) {
 	db := config.Database()
 	defer db.Close()
@@ -203,10 +207,10 @@ func GetPostsHandler(c *gin.Context) {
 
 	id, err := strconv.Atoi(c.Param("identifier"))
 	if err == nil {
-		fmt.Println("post GetPostsHandler 1 ",err)
+		fmt.Println("post GetPostsHandler 1 ", err)
 		err = thread.Get(db, "", int32(id), "")
 		if err != nil {
-			fmt.Println("post GetPostsHandler 2 ",err)
+			fmt.Println("post GetPostsHandler 2 ", err)
 			c.JSON(http.StatusNotFound, models.Error{"Can't find thread with id: " + strconv.Itoa(id)})
 			return
 		}
@@ -215,24 +219,23 @@ func GetPostsHandler(c *gin.Context) {
 		err = thread.Get(db, slug, 0, "")
 		//fmt.Println("post GetPostsHandler 3 ",err)
 		if err != nil {
-			fmt.Println("post GetPostsHandler 4 ",err)
+			fmt.Println("post GetPostsHandler 4 ", err)
 			c.JSON(http.StatusNotFound, models.Error{"Can't find thread with slug: " + slug})
 			return
 		}
 	}
 
-
 	queryString := c.Request.URL.Query()
 
 	limit, err := strconv.Atoi(queryString.Get("limit"))
 	if err != nil {
-		fmt.Println("post GetPostsHandler 5 ",err)
+		fmt.Println("post GetPostsHandler 5 ", err)
 		limit = 501
 	}
 
 	since, err := strconv.Atoi(queryString.Get("since"))
 	if err != nil {
-		fmt.Println("post GetPostsHandler 6 ",err)
+		fmt.Println("post GetPostsHandler 6 ", err)
 		since = 0
 	}
 
@@ -247,7 +250,7 @@ func GetPostsHandler(c *gin.Context) {
 	posts, err := thread.GetListPost(db, int64(since), sort, desc, limit)
 
 	if err != nil {
-		fmt.Println("post GetPostsHandler 6 ",err)
+		fmt.Println("post GetPostsHandler 6 ", err)
 	}
 
 	if len(posts) == 0 {
