@@ -104,7 +104,7 @@ func PostsCreateHandler(c *gin.Context) {
 
 	}
 
-	postsCreated := models.CreatePostsBulk(db, posts)
+	postsCreated := models.CreatePostsBulk(db, posts, thread)
 
 	//if postsCreated == nil {
 	//	c.JSON(http.StatusCreated, []int{})

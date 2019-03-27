@@ -3,6 +3,7 @@ package models
 import (
 	"database/sql"
 	"fmt"
+	"github.com/lib/pq"
 	"log"
 	"time"
 )
@@ -84,54 +85,136 @@ func (p *Post) CheckAuthorExists(db *sql.DB) (exist bool) {
 	return
 }
 
-func CreatePostsBulk(db *sql.DB, data []Post) (posts []Post) {
+func (p Post) GetPath(db *sql.DB) (path []int64) {
+	rows, err := db.Query("SELECT ((SELECT path FROM forum_db.post WHERE id = $1) || (select currval('forum_db.post_id_seq')::integer))",
+		p.ParentID.Int64)
+	defer rows.Close()
 
-	//('{1}', 'comment_1'),
-	//  (SELECT path FROM comments WHERE id = :id) || (select currval('comments_id_seq')::integer)
+	if err != nil {
+		log.Fatal("post model GetPath 1 ", err)
+		return
+	}
+	//pq.Array(&tags)
+	for rows.Next() {
+		err := rows.Scan(pq.Array(&path))
+		if err != nil {
+			log.Fatal("post model GetPath 2 ", err)
+			return
+		}
+	}
+
+	return
+}
+
+//func (p Post) GetLastId(db *sql.DB) (path []int64) {
+//	rows, err := db.Query("SELECT ((SELECT path FROM forum_db.post WHERE id = $1) || (select currval('forum_db.post_id_seq')::integer))",
+//		p.ParentID)
+//	defer rows.Close()
+//
+//	if err != nil {
+//		log.Fatal("post model GetPath 1 ", err)
+//		return
+//	}
+//	//pq.Array(&tags)
+//	for rows.Next() {
+//		err := rows.Scan(pq.Array(&path))
+//		if err != nil {
+//			log.Fatal("post model GetPath 2 ", err)
+//			return
+//		}
+//	}
+//
+//	return
+//}
+
+func (p Post) Create(db *sql.DB, pathValue []int64) {
+	_, err := db.Exec(
+		`INSERT INTO forum_db.post (author_id, created, forum_id, isEdited, message, parent_id, thread_id, path)
+ 				VALUES ($1, $2, $3, $4, $5, $6, $7, (SELECT path FROM forum_db.post WHERE id = $8) || (select currval('forum_db.post_id_seq')::integer))`,
+		p.AuthorID, p.Created, p.ForumSlug, p.IsEdited, p.Message, p.ParentID, p.ThreadID, p.ParentID,
+	)
+
+	//RETURNING tbl_id
+	if err != nil {
+		log.Fatal("post model Create 1 ", err)
+		//fmt.Println("forum model Create 1 ",err)
+		//return
+	}
+	return
+}
+
+func CreatePostsBulk(db *sql.DB, data []Post, thread Thread) (posts []Post) {
+
+	//('{1}', 'comment_1'), - parent_id
+	//  SELECT ((SELECT path FROM forum_db.post WHERE id = 1) || (select currval('forum_db.post_id_seq')::integer));
 
 	currentTime := time.Now()
 	countPosts := len(data)
 
-	txn, err := db.Begin()
-	if err != nil {
-		log.Fatal("post model CreatePostsBulk 1 ", err)
-	}
+	//txn, err := db.Begin()
+	//if err != nil {
+	//	log.Fatal("post model CreatePostsBulk 1 ", err)
+	//}
+	//
+	////stmt, err := txn.Prepare(`COPY forum_db.post (author_id, created, forum_id, isEdited, message, parent_id, thread_id, path) FROM STDIN`)
+	//if err != nil {
+	//	log.Fatal("post model CreatePostsBulk 2 ", err)
+	//}
 
-	stmt, err := txn.Prepare(`COPY forum_db.post (author_id, created, forum_id, isEdited, message, parent_id, thread_id) FROM STDIN`)
-	if err != nil {
-		log.Fatal("post model CreatePostsBulk 2 ", err)
-	}
+	//var lastId int64
+	//
+	//lastPost, err := thread.GetLastPost(db)
+	//if err != nil {
+	//	lastId = 0
+	//} else {
+	//	lastId = lastPost.Id
+	//}
+
+	var pathValue []int64
 
 	for _, post := range data {
+		//if post.ParentID.Valid && post.ParentID.Int64 != 0 {
+		//	fmt.Println(post.ParentID, post.Id)
+		//	pathValue = post.GetPath(db)
+		//	fmt.Println(post.ParentID, post.Id)
+		//} else {
+		//	//tags := []int64{post.Id}
+		//	var lastId int64
+		//	lastPost, err := thread.GetLastPost(db)
+		//	if err != nil {
+		//		lastId = 0
+		//	} else {
+		//		lastId = lastPost.Id
+		//	}
+		//	pathValue = []int64{lastId+1}
+		//	fmt.Println(pq.Array(pathValue))
+		//}
+		//pathValue := post.GetPath(db)
 		if !post.Created.Valid {
 			post.Created.Time = currentTime
 			post.Created.Valid = true
-			_, err = stmt.Exec(post.AuthorID, post.Created, post.ForumSlug, post.IsEdited, post.Message, post.ParentID, post.ThreadID)
-			if err != nil {
-				log.Fatal("post model CreatePostsBulk 3.1 ", err)
-			}
-		} else {
-			_, err = stmt.Exec(post.AuthorID, post.Created, post.ForumSlug, post.IsEdited, post.Message, post.ParentID, post.ThreadID)
-			if err != nil {
-				log.Fatal("post model CreatePostsBulk 3 ", err)
-			}
 		}
+
+		post.Create(db, pathValue)
+
 	}
 
-	_, err = stmt.Exec()
-	if err != nil {
-		log.Fatal("post model CreatePostsBulk 4 ", err)
-	}
-
-	err = stmt.Close()
-	if err != nil {
-		log.Fatal("post model CreatePostsBulk 5 ", err)
-	}
-
-	err = txn.Commit()
-	if err != nil {
-		log.Fatal("post model CreatePostsBulk 6 ", err)
-	}
+	//_, err = stmt.Exec()
+	//if err != nil {
+	//	//fmt.Println(pq.Array(pathValue))
+	//	log.Fatal("post model CreatePostsBulk 4 ", err)
+	//}
+	//
+	//err = stmt.Close()
+	//if err != nil {
+	//	log.Fatal("post model CreatePostsBulk 5 ", err)
+	//}
+	//
+	//
+	//err = txn.Commit()
+	//if err != nil {
+	//	log.Fatal("post model CreatePostsBulk 6 ", err)
+	//}
 
 	rows, err := db.Query(`
 SELECT * FROM (SELECT p.id, p.author_id, p.created, p.forum_id, p.isEdited, p.message, p.parent_id, p.thread_id

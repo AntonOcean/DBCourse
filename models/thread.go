@@ -182,19 +182,17 @@ LIMIT $3
 		if desc == "true" {
 			if since == 0 {
 				rows, err = db.Query(`
-SELECT child.id, child.author_id, child.created, child.forum_id, child.isEdited, child.message, child.parent_id, child.thread_id FROM forum_db.post parent
-JOIN forum_db.post child ON child.parent_id = parent.id OR (child.id = parent.id AND child.parent_id is NULL)
-WHERE parent.thread_id = $1
-ORDER BY parent.id DESC, child.id DESC, parent.created DESC
+SELECT p.id, p.author_id, p.created, p.forum_id, p.isEdited, p.message, p.parent_id, p.thread_id FROM forum_db.post p
+WHERE p.thread_id = $1
+ORDER BY p.path DESC
 LIMIT $2
 `,
 					t.Id, limit)
 			} else {
 				rows, err = db.Query(`
-SELECT child.id, child.author_id, child.created, child.forum_id, child.isEdited, child.message, child.parent_id, child.thread_id FROM forum_db.post parent
-JOIN forum_db.post child ON child.parent_id = parent.id OR (child.id = parent.id AND child.parent_id is NULL)
-WHERE parent.thread_id = $1 AND parent.id < $2
-ORDER BY parent.created DESC, parent.id DESC, child.id DESC
+SELECT p.id, p.author_id, p.created, p.forum_id, p.isEdited, p.message, p.parent_id, p.thread_id FROM forum_db.post p
+WHERE p.thread_id = $1 AND path < (SELECT path FROM forum_db.post WHERE id = $2)
+ORDER BY p.path DESC
 LIMIT $3
 `,
 					t.Id, since, limit)
@@ -202,19 +200,17 @@ LIMIT $3
 		} else {
 			if since == 0 {
 				rows, err = db.Query(`
-SELECT child.id, child.author_id, child.created, child.forum_id, child.isEdited, child.message, child.parent_id, child.thread_id FROM forum_db.post parent
-JOIN forum_db.post child ON child.parent_id = parent.id OR (child.id = parent.id AND child.parent_id is NULL)
-WHERE parent.thread_id = $1
-ORDER BY parent.id, child.id, parent.created
+SELECT p.id, p.author_id, p.created, p.forum_id, p.isEdited, p.message, p.parent_id, p.thread_id FROM forum_db.post p
+WHERE p.thread_id = $1
+ORDER BY p.path
 LIMIT $2
 `,
 					t.Id, limit)
 			} else {
 				rows, err = db.Query(`
-SELECT child.id, child.author_id, child.created, child.forum_id, child.isEdited, child.message, child.parent_id, child.thread_id FROM forum_db.post parent
-JOIN forum_db.post child ON child.parent_id = parent.id OR (child.id = parent.id AND child.parent_id is NULL)
-WHERE parent.thread_id = $1 AND parent.id > $2
-ORDER BY parent.created, parent.id, child.id
+SELECT p.id, p.author_id, p.created, p.forum_id, p.isEdited, p.message, p.parent_id, p.thread_id FROM forum_db.post p
+WHERE p.thread_id = $1 AND path > (SELECT path FROM forum_db.post WHERE id = $2)
+ORDER BY p.path
 LIMIT $3
 `,
 					t.Id, since, limit)
@@ -226,56 +222,52 @@ LIMIT $3
 		if desc == "true" {
 			if since == 0 {
 				rows, err = db.Query(`
-SELECT child.id, child.author_id, child.created, child.forum_id, child.isEdited, child.message, child.parent_id, child.thread_id FROM forum_db.post parent
-JOIN forum_db.post child ON child.parent_id = parent.id OR (child.id = parent.id AND child.parent_id is NULL)
-WHERE parent.thread_id = $1 AND parent.id IN (
+SELECT p.id, p.author_id, p.created, p.forum_id, p.isEdited, p.message, p.parent_id, p.thread_id FROM forum_db.post p
+WHERE p.thread_id = $1 AND p.path[1] IN (
     SELECT parent.id FROM forum_db.post parent
-WHERE parent.thread_id = $1
+WHERE parent.thread_id = $1 AND parent.parent_id IS NULL
 ORDER BY parent.created DESC, parent.id DESC
-LIMIT $2
+  LIMIT $2
   )
-ORDER BY parent.created DESC, parent.id DESC, child.id
+ORDER BY p.path[1] DESC, p.path
 `,
 					t.Id, limit)
 			} else {
 				rows, err = db.Query(`
-SELECT child.id, child.author_id, child.created, child.forum_id, child.isEdited, child.message, child.parent_id, child.thread_id FROM forum_db.post parent
-JOIN forum_db.post child ON child.parent_id = parent.id OR (child.id = parent.id AND child.parent_id is NULL)
-WHERE parent.thread_id = $1 AND parent.id IN (
+SELECT p.id, p.author_id, p.created, p.forum_id, p.isEdited, p.message, p.parent_id, p.thread_id FROM forum_db.post p
+WHERE p.thread_id = $1 AND p.path[1] IN (
     SELECT parent.id FROM forum_db.post parent
-WHERE parent.thread_id = $1 AND parent.id < $2
+WHERE parent.thread_id = $1 AND parent.parent_id IS NULL AND parent.path[1] < (SELECT path[1] FROM forum_db.post WHERE id = $2)
 ORDER BY parent.created DESC, parent.id DESC
-LIMIT $3
+  LIMIT $3
   )
-ORDER BY parent.created DESC, parent.id DESC, child.id
+ORDER BY p.path[1] DESC, p.path
 `,
 					t.Id, since, limit)
 			}
 		} else {
 			if since == 0 {
 				rows, err = db.Query(`
-SELECT child.id, child.author_id, child.created, child.forum_id, child.isEdited, child.message, child.parent_id, child.thread_id FROM forum_db.post parent
-JOIN forum_db.post child ON child.parent_id = parent.id OR (child.id = parent.id AND child.parent_id is NULL)
-WHERE parent.thread_id = $1 AND parent.id IN (
+SELECT p.id, p.author_id, p.created, p.forum_id, p.isEdited, p.message, p.parent_id, p.thread_id FROM forum_db.post p
+WHERE p.thread_id = $1 AND p.path[1] IN (
     SELECT parent.id FROM forum_db.post parent
-WHERE parent.thread_id = $1
+WHERE parent.thread_id = $1 AND parent.parent_id IS NULL
 ORDER BY parent.created, parent.id
-LIMIT $2
+  LIMIT $2
   )
-ORDER BY parent.created, parent.id, child.id
+ORDER BY p.path;
 `,
 					t.Id, limit)
 			} else {
 				rows, err = db.Query(`
-SELECT child.id, child.author_id, child.created, child.forum_id, child.isEdited, child.message, child.parent_id, child.thread_id FROM forum_db.post parent
-JOIN forum_db.post child ON child.parent_id = parent.id OR (child.id = parent.id AND child.parent_id is NULL)
-WHERE parent.thread_id = $1 AND parent.id IN (
+SELECT p.id, p.author_id, p.created, p.forum_id, p.isEdited, p.message, p.parent_id, p.thread_id FROM forum_db.post p
+WHERE p.thread_id = $1 AND p.path[1] IN (
     SELECT parent.id FROM forum_db.post parent
-WHERE parent.thread_id = $1 AND parent.id > $2
+WHERE parent.thread_id = $1 AND parent.parent_id IS NULL AND parent.path[1] > (SELECT path[1] FROM forum_db.post WHERE id = $2)
 ORDER BY parent.created, parent.id
-LIMIT $3
+  LIMIT $3
   )
-ORDER BY parent.created, parent.id, child.id
+ORDER BY p.path
 `,
 					t.Id, since, limit)
 			}
