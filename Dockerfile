@@ -12,8 +12,7 @@ ADD . /go/src/forum
 WORKDIR /go/src/forum
 
 # Собираем и устанавливаем пакет
-RUN go get -v github.com/lib/pq && go get -v github.com/gin-gonic/gin
-RUN go build
+RUN go build -mod vendor
 
 FROM ubuntu:18.04 AS release
 
