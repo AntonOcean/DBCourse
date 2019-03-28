@@ -1,13 +1,19 @@
 FROM golang:1.11-stretch AS build
 
 # Копируем исходный код в Docker-контейнер
-ADD . /opt/build/golang/
+RUN ls
+RUN pwd
+RUN echo $GOPATH
+# ADD . /opt/build/golang/
+ADD . /go/src/forum
 #ADD common/ /opt/build/common/
 
-WORKDIR /opt/build/golang
+# WORKDIR /opt/build/golang
+WORKDIR /go/src/forum
 
 # Собираем и устанавливаем пакет
-RUN go build -o ./go_serv main.go
+RUN go get -v github.com/lib/pq && go get -v github.com/gin-gonic/gin
+RUN go build
 
 FROM ubuntu:18.04 AS release
 
@@ -22,7 +28,7 @@ USER postgres
 # then create a database `docker` owned by the ``docker`` role.
 RUN /etc/init.d/postgresql start &&\
     psql --command "CREATE USER docker WITH SUPERUSER PASSWORD 'docker';" &&\
-    createdb -O docker docker &&\
+    createdb -O docker forum_db &&\
     /etc/init.d/postgresql stop
 
 # Adjust PostgreSQL configuration so that remote connections to the
@@ -39,7 +45,8 @@ EXPOSE 5432
 VOLUME  ["/etc/postgresql", "/var/log/postgresql", "/var/lib/postgresql"]
 
 # Собранный ранее сервер
-COPY --from=build /opt/build/golang/* /home/
+# COPY --from=build /opt/build/golang/* /home/
+COPY --from=build /go/src/forum/* /home/
 
 # Back to the root user
 USER root
@@ -49,4 +56,4 @@ EXPOSE 5000
 
 # Запускаем PostgreSQL и сервер
 CMD service postgresql start && export PGPASSWORD='docker' &&  psql docker < home/dump.sql -h localhost -U docker &&\
-    ./home/go_serv --scheme=http --port=5000 --host=0.0.0.0 --database=postgres://docker:docker@localhost/docker
+    ./home/forum --scheme=http --port=5000 --host=0.0.0.0 --database=postgres://docker:docker@localhost/docker

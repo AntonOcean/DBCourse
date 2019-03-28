@@ -48,7 +48,7 @@ func main() {
 
 	//r.Use(DataBaseConnectionMiddleware())
 
-	_ = r.Run(":8080") // listen and serve on 0.0.0.0:8080
+	_ = r.Run(":5000") // listen and serve on 0.0.0.0:8080
 }
 
 //router.GET("/v1/images/:path1", GetHandler)           //      /v1/images/detail
