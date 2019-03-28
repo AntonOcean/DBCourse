@@ -5,14 +5,15 @@ RUN ls
 RUN pwd
 RUN echo $GOPATH
 # ADD . /opt/build/golang/
-ADD . /go/src/forum
+ADD . /go/src/DBCourse
 #ADD common/ /opt/build/common/
 
 # WORKDIR /opt/build/golang
-WORKDIR /go/src/forum
+WORKDIR /go/src/DBCourse
 
 # Собираем и устанавливаем пакет
-RUN go build -mod vendor
+RUN go get "github.com/lib/pq" && go get "github.com/gorilla/mux"
+RUN go build
 
 FROM ubuntu:18.04 AS release
 
@@ -45,7 +46,7 @@ VOLUME  ["/etc/postgresql", "/var/log/postgresql", "/var/lib/postgresql"]
 
 # Собранный ранее сервер
 # COPY --from=build /opt/build/golang/* /home/
-COPY --from=build /go/src/forum/* /home/
+COPY --from=build /go/src/DBCourse/* /home/
 
 # Back to the root user
 USER root
@@ -55,4 +56,4 @@ EXPOSE 5000
 
 # Запускаем PostgreSQL и сервер
 CMD service postgresql start && export PGPASSWORD='docker' &&  psql docker < home/dump.sql -h localhost -U docker &&\
-    ./home/forum --scheme=http --port=5000 --host=0.0.0.0 --database=postgres://docker:docker@localhost/docker
+./home/DBCourse --scheme=http --port=5000 --host=0.0.0.0 --database=postgres://docker:docker@localhost/docker
