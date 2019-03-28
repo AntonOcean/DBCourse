@@ -5,6 +5,9 @@ drop table if exists forum_db.thread;
 drop table if exists forum_db.forum;
 drop table if exists forum_db.user;
 drop extension if exists citext;
+DROP DATABASE if exists forum_db;
+
+CREATE DATABASE forum_db;
 
 create extension citext;
 
