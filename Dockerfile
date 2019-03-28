@@ -12,7 +12,7 @@ ADD . /go/src/DBCourse
 WORKDIR /go/src/DBCourse
 
 # Собираем и устанавливаем пакет
-RUN go get "github.com/lib/pq" && go get "github.com/gorilla/mux"
+RUN go get "github.com/lib/pq" && go get "github.com/gin-gonic/gin"
 RUN go build
 
 FROM ubuntu:18.04 AS release
