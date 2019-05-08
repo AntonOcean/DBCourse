@@ -9,7 +9,8 @@ import (
 var DB *sql.DB = Database()
 
 func Database() *sql.DB {
-	connStr := "postgres://docker:docker@localhost/docker"
+	//connStr := "postgres://docker:docker@localhost/docker"
+	connStr := "postgres://postgres:12345678@localhost:5432/postgres"
 	db, err := sql.Open("postgres", connStr)
 	if err != nil {
 		log.Fatal("Invalid DB config:", err)
